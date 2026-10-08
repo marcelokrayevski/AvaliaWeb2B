@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sistema de Avaliação de Apresentações</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+  <style>
+    body {
+      background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
+      min-height: 100vh;
+      color: #f8fafc;
+    }
+    .glass-card {
+      background: rgba(255, 255, 255, 0.05);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      transition: all 0.3s ease;
+    }
+    .glass-card:hover {
+      transform: translateY(-4px);
+      border-color: rgba(99, 102, 241, 0.5);
+      box-shadow: 0 10px 25px -5px rgba(99, 102, 241, 0.25);
+    }
+  </style>
+</head>
+<body class="p-4 md:p-8 font-sans">
+
+  <div class="max-w-7xl mx-auto">
+    <header class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+      <div>
+        <h1 class="text-3xl font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-400">
+          Avaliação de Apresentações
+        </h1>
+        <p class="text-slate-400 text-sm mt-1">Selecione o estudante que se apresentou para atribuir sua nota de 0 a 100.</p>
+      </div>
+    </header>
+
+    <main>
+      <div id="grid-alunos" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+        <p class="text-slate-400 col-span-full text-center py-12">Carregando estudantes...</p>
+      </div>
+    </main>
+  </div>
+
+  <!-- Modal de Avaliação -->
+  <div id="modal-avaliacao" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden items-center justify-center p-4 z-50">
+    <div class="glass-card bg-slate-900 p-6 rounded-2xl w-full max-w-md border border-slate-700 shadow-2xl relative">
+      <h3 class="text-xl font-bold text-slate-100 mb-1" id="modal-nome-aluno">Avaliar Aluno</h3>
+      <p class="text-slate-400 text-xs mb-6">Atribua uma nota de 0 a 100 com base na apresentação.</p>
+
+      <form id="form-avaliacao" onsubmit="salvarAvaliacao(event)">
+        <input type="hidden" id="modal-aluno-id" />
+        <div class="mb-6">
+          <label class="block text-sm font-medium text-slate-300 mb-2">Nota (0 a 100)</label>
+          <div class="flex items-center gap-4">
+            <input type="number" id="input-nota" min="0" max="100" required placeholder="Ex: 85"
+                   class="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-2xl font-bold text-indigo-400 focus:outline-none focus:border-indigo-500 text-center" />
+          </div>
+        </div>
+
+        <div class="flex gap-3">
+          <button type="button" onclick="fecharModal()" class="w-1/2 bg-slate-800 hover:bg-slate-700 text-slate-300 py-3 rounded-xl font-semibold transition">
+            Cancelar
+          </button>
+          <button type="submit" id="btn-enviar" class="w-1/2 bg-indigo-600 hover:bg-indigo-500 text-white py-3 rounded-xl font-semibold transition shadow-lg shadow-indigo-600/30">
+            Enviar Nota
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyB_lWXM50XBj7YWxmYfmagaAcL5vNV8oEk",
+      authDomain: "avaliaturma2b.firebaseapp.com",
+      databaseURL: "https://avaliaturma2b-default-rtdb.firebaseio.com",
+      projectId: "avaliaturma2b",
+      storageBucket: "avaliaturma2b.firebasestorage.app",
+      messagingSenderId: "420639612042",
+      appId: "1:420639612042:web:db98045625b16a54dd6173"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    const listaAlunosOficial = [
+      "ALEXANDRE ROLIN", "ARTHUR PERUSSOLO", "BEATRIZ SUNTAK", "CAIO COUTINHO",
+      "DANIEL NUNES", "DAVI ROBES", "ENDRIO CARDOSO", "ENZO MAURÍCIO",
+      "ESTER GABRIELA", "FABIO FECHER", "FELIPE CECILIANO", "GABRIEL PACHECO",
+      "GABRIELLY VITORIA", "GIULA PORTELA", "GUILHERME TIMOTEO", "GUSTAVO BACH",
+      "HELOISE ANDRADE", "IARA GARRET", "ISABELA WOJAKEVICZ", "JULIA BONATO",
+      "KAIO MOCELLIN", "LEONARDO PAIZANI", "LETÍCIA KUCHAKI", "LUCAS WSSNER",
+      "LUCAS MELLO", "LUISA CARLOTO", "LUIZ FELIPE", "MATEUS PERIN",
+      "MIRELLA GRUBELL", "NICOLAS DE PAULA", "PAULA CORÁ", "TICIANE CHEVA",
+      "VINICIUS BARRETO", "VITOR LOFFLER"
+    ];
+
+    let estudantesDados = {};
+
+    db.ref('estudantes').on('value', (snapshot) => {
+      const data = snapshot.val();
+      if (!data) {
+        let inicial = {};
+        listaAlunosOficial.forEach((nome, idx) => {
+          inicial[idx + 1] = { id: idx + 1, nome: nome, notas: {} };
+        });
+        db.ref('estudantes').set(inicial);
+        estudantesDados = inicial;
+      } else {
+        estudantesDados = data;
+      }
+      renderizarGrid();
+    });
+
+    function renderizarGrid() {
+      const grid = document.getElementById('grid-alunos');
+      grid.innerHTML = '';
+
+      Object.values(estudantesDados).forEach(estudante => {
+        const listaNotas = estudante.notas ? Object.values(estudante.notas) : [];
+        
+        const card = document.createElement('div');
+        card.className = 'glass-card rounded-xl p-5 flex flex-col justify-between';
+        card.innerHTML = `
+          <div>
+            <div class="flex justify-between items-start mb-3">
+              <div class="w-9 h-9 rounded-full bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center text-indigo-300 font-bold text-sm">
+                ${estudante.nome.charAt(0)}
+              </div>
+              <span class="text-xs px-2 py-0.5 rounded-full bg-slate-800 border border-slate-700 text-slate-400">
+                ${listaNotas.length} avaliações
+              </span>
+            </div>
+            <h3 class="text-sm font-bold text-slate-100 mb-1 truncate" title="${estudante.nome}">${estudante.nome}</h3>
+          </div>
+          <button onclick="abrirModal(${estudante.id})" class="w-full mt-4 bg-slate-800 hover:bg-indigo-600 text-slate-200 hover:text-white py-2 rounded-lg font-medium text-xs transition flex items-center justify-center gap-1.5 border border-slate-700 hover:border-indigo-500">
+            <i data-lucide="star" class="w-3.5 h-3.5"></i> Avaliar
+          </button>
+        `;
+        grid.appendChild(card);
+      });
+      lucide.createIcons();
+    }
+
+    function abrirModal(id) {
+      const estudante = estudantesDados[id];
+      if (!estudante) return;
+
+      document.getElementById('modal-aluno-id').value = id;
+      document.getElementById('modal-nome-aluno').innerText = `Avaliar ${estudante.nome}`;
+      document.getElementById('input-nota').value = '';
+      document.getElementById('modal-avaliacao').classList.remove('hidden');
+      document.getElementById('modal-avaliacao').classList.add('flex');
+    }
+
+    function fecharModal() {
+      document.getElementById('modal-avaliacao').classList.add('hidden');
+      document.getElementById('modal-avaliacao').classList.remove('flex');
+    }
+
+    function salvarAvaliacao(e) {
+      e.preventDefault();
+      const id = document.getElementById('modal-aluno-id').value;
+      const nota = parseFloat(document.getElementById('input-nota').value);
+
+      if (isNaN(nota) || nota < 0 || nota > 100) {
+        alert('Por favor, digite uma nota válida entre 0 e 100.');
+        return;
+      }
+
+      db.ref(`estudantes/${id}/notas`).push(nota, (error) => {
+        if (error) {
+          alert("Erro ao salvar avaliação. Certifique-se de que o Realtime Database está em modo de teste.");
+        } else {
+          fecharModal();
+        }
+      });
+    }
+  </script>
+</body>
+</html>

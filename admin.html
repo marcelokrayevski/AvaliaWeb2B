@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Painel do Professor - Relatório Geral</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+  <style>
+    body { background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%); min-height: 100vh; color: #f8fafc; }
+    .glass-card { background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.1); }
+  </style>
+</head>
+<body class="p-4 md:p-8 font-sans">
+  <div class="max-w-6xl mx-auto">
+    <header class="flex justify-between items-center mb-8">
+      <div>
+        <h1 class="text-3xl font-extrabold text-indigo-400">Painel Administrativo</h1>
+        <p class="text-slate-400 text-sm">Relatório consolidado e controle de notas da Turma 2B</p>
+      </div>
+      <span class="bg-indigo-900/50 text-indigo-300 text-xs px-3 py-1.5 rounded-full border border-indigo-500/30 font-semibold flex items-center gap-1.5">
+        <i data-lucide="shield-check" class="w-4 h-4"></i> Acesso Restrito
+      </span>
+    </header>
+
+    <div class="glass-card p-6 rounded-2xl">
+      <div class="overflow-x-auto">
+        <table class="w-full text-left text-sm text-slate-300">
+          <thead class="bg-slate-800/80 text-slate-400 uppercase text-xs">
+            <tr>
+              <th class="p-3 rounded-l-lg">Estudante</th>
+              <th class="p-3">Avaliações</th>
+              <th class="p-3">Média Atual</th>
+              <th class="p-3 text-right rounded-r-lg">Controle</th>
+            </tr>
+          </thead>
+          <tbody id="tabela-relatorio" class="divide-y divide-slate-800">
+            <tr><td colspan="4" class="p-4 text-center text-slate-400">Carregando dados do Firebase...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyB_lWXM50XBj7YWxmYfmagaAcL5vNV8oEk",
+      authDomain: "avaliaturma2b.firebaseapp.com",
+      databaseURL: "https://avaliaturma2b-default-rtdb.firebaseio.com",
+      projectId: "avaliaturma2b",
+      storageBucket: "avaliaturma2b.firebasestorage.app",
+      messagingSenderId: "420639612042",
+      appId: "1:420639612042:web:db98045625b16a54dd6173"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    db.ref('estudantes').on('value', (snapshot) => {
+      const data = snapshot.val();
+      if (data) renderizarRelatorio(data);
+    });
+
+    function calcularMedia(notasObj) {
+      if (!notasObj) return "N/A";
+      const notas = Object.values(notasObj);
+      if (notas.length === 0) return "N/A";
+      const soma = notas.reduce((a, b) => Number(a) + Number(b), 0);
+      return (soma / notas.length).toFixed(1);
+    }
+
+    function renderizarRelatorio(estudantes) {
+      const tabela = document.getElementById('tabela-relatorio');
+      tabela.innerHTML = '';
+
+      Object.values(estudantes).forEach(estudante => {
+        const listaNotas = estudante.notas ? Object.values(estudante.notas) : [];
+        const media = calcularMedia(estudante.notas);
+        const tr = document.createElement('tr');
+        tr.className = 'hover:bg-slate-800/40 transition';
+        tr.innerHTML = `
+          <td class="p-3 font-semibold text-slate-200">${estudante.nome}</td>
+          <td class="p-3 text-slate-400">${listaNotas.length} avaliações</td>
+          <td class="p-3 font-bold text-indigo-400">${media}</td>
+          <td class="p-3 text-right">
+            <button onclick="zerarNotas(${estudante.id})" class="text-xs bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 px-3 py-1.5 rounded-lg font-medium transition inline-flex items-center gap-1">
+              <i data-lucide="rotate-ccw" class="w-3 h-3"></i> Zerar
+            </button>
+          </td>
+        `;
+        tabela.appendChild(tr);
+      });
+      lucide.createIcons();
+    }
+
+    function zerarNotas(id) {
+      if (confirm('Tem certeza que deseja apagar todas as notas deste aluno no banco de dados?')) {
+        db.ref(`estudantes/${id}/notas`).remove();
+      }
+    }
+  </script>
+</body>
+</html>

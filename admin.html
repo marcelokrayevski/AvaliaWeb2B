@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Painel do Professor - Relatório Geral</title>
+  <title>Painel do Professor - Relatório da Turma 2B</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/lucide@latest"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
@@ -11,36 +11,106 @@
   <style>
     body { background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%); min-height: 100vh; color: #f8fafc; }
     .glass-card { background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.1); }
+
+    /* ESTILOS DE IMPRESSÃO / GERAR PDF */
+    @media print {
+      body {
+        background: #ffffff !important;
+        color: #000000 !important;
+        padding: 0 !important;
+      }
+      .no-print {
+        display: none !important;
+      }
+      .glass-card {
+        background: none !important;
+        border: none !important;
+        backdrop-filter: none !important;
+        box-shadow: none !important;
+        padding: 0 !important;
+      }
+      table {
+        width: 100% !important;
+        border-collapse: collapse !important;
+        color: #000000 !important;
+      }
+      th, td {
+        border: 1px solid #cbd5e1 !important;
+        padding: 8px !important;
+        color: #000000 !important;
+      }
+      thead {
+        background-color: #f1f5f9 !important;
+      }
+      .titulo-pdf {
+        color: #000000 !important;
+        font-size: 20pt !important;
+        font-weight: bold !important;
+        margin-bottom: 4px !important;
+      }
+      .subtitulo-pdf {
+        color: #475569 !important;
+        font-size: 10pt !important;
+        margin-bottom: 20px !important;
+      }
+    }
   </style>
 </head>
 <body class="p-4 md:p-8 font-sans">
-  <div class="max-w-6xl mx-auto">
-    <header class="flex justify-between items-center mb-8">
+  <div class="max-w-7xl mx-auto">
+    <!-- Cabeçalho -->
+    <header class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
       <div>
-        <h1 class="text-3xl font-extrabold text-indigo-400">Painel Administrativo</h1>
-        <p class="text-slate-400 text-sm">Relatório consolidado e controle de notas da Turma 2B</p>
+        <h1 class="text-3xl font-extrabold text-indigo-400 titulo-pdf">Painel do Professor - Turma 2B</h1>
+        <p class="text-slate-400 text-sm mt-1 subtitulo-pdf">Relatório Consolidado de Notas e Avaliações de Apresentações</p>
       </div>
-      <span class="bg-indigo-900/50 text-indigo-300 text-xs px-3 py-1.5 rounded-full border border-indigo-500/30 font-semibold flex items-center gap-1.5">
-        <i data-lucide="shield-check" class="w-4 h-4"></i> Acesso Restrito
-      </span>
+      
+      <div class="flex flex-wrap items-center gap-3 no-print">
+        <!-- Botão Exportar PDF -->
+        <button onclick="gerarPDF()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2.5 rounded-xl font-semibold text-xs transition flex items-center gap-2 shadow-lg shadow-indigo-600/30">
+          <i data-lucide="file-text" class="w-4 h-4"></i> Exportar Relatório (PDF)
+        </button>
+
+        <!-- Botão Zerar Todas as Avaliações -->
+        <button onclick="zerarTodasAsNotas()" class="bg-red-600/20 hover:bg-red-600/40 text-red-300 border border-red-500/40 px-4 py-2.5 rounded-xl font-semibold text-xs transition flex items-center gap-2 shadow-lg shadow-red-950/40">
+          <i data-lucide="trash-2" class="w-4 h-4"></i> Zerar Aplicação
+        </button>
+
+        <span class="bg-indigo-900/50 text-indigo-300 text-xs px-3 py-2 rounded-xl border border-indigo-500/30 font-semibold flex items-center gap-1.5">
+          <i data-lucide="shield-check" class="w-4 h-4"></i> Admin
+        </span>
+      </div>
     </header>
 
+    <!-- Tabela Principal -->
     <div class="glass-card p-6 rounded-2xl">
       <div class="overflow-x-auto">
         <table class="w-full text-left text-sm text-slate-300">
           <thead class="bg-slate-800/80 text-slate-400 uppercase text-xs">
             <tr>
               <th class="p-3 rounded-l-lg">Estudante</th>
-              <th class="p-3">Avaliações</th>
-              <th class="p-3">Média Atual</th>
-              <th class="p-3 text-right rounded-r-lg">Controle</th>
+              <th class="p-3">Média Consolidada</th>
+              <th class="p-3">Avaliações Recebidas</th>
+              <th class="p-3">Status de Envio (Obrigatoriedade)</th>
+              <th class="p-3 text-right rounded-r-lg no-print">Ações</th>
             </tr>
           </thead>
           <tbody id="tabela-relatorio" class="divide-y divide-slate-800">
-            <tr><td colspan="4" class="p-4 text-center text-slate-400">Carregando dados do Firebase...</td></tr>
+            <tr><td colspan="5" class="p-4 text-center text-slate-400">Carregando dados do Firebase...</td></tr>
           </tbody>
         </table>
       </div>
+    </div>
+  </div>
+
+  <!-- Modal Detalhado -->
+  <div id="modal-detalhes" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden items-center justify-center p-4 z-50 no-print">
+    <div class="glass-card bg-slate-900 p-6 rounded-2xl w-full max-w-2xl border border-slate-700 max-h-[85vh] overflow-y-auto">
+      <div class="flex justify-between items-center mb-4">
+        <h3 class="text-xl font-bold text-slate-100" id="detalhe-nome-aluno">Detalhes de Avaliação</h3>
+        <button onclick="fecharDetalhes()" class="text-slate-400 hover:text-white text-lg font-bold">✕</button>
+      </div>
+      <div id="detalhes-conteudo" class="space-y-3"></div>
     </div>
   </div>
 
@@ -58,35 +128,68 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
+    let estudantesDados = {};
+
     db.ref('estudantes').on('value', (snapshot) => {
       const data = snapshot.val();
-      if (data) renderizarRelatorio(data);
+      if (data) {
+        estudantesDados = data;
+        renderizarRelatorio();
+      }
     });
 
-    function calcularMedia(notasObj) {
-      if (!notasObj) return "N/A";
-      const notas = Object.values(notasObj);
-      if (notas.length === 0) return "N/A";
-      const soma = notas.reduce((a, b) => Number(a) + Number(b), 0);
-      return (soma / notas.length).toFixed(1);
-    }
-
-    function renderizarRelatorio(estudantes) {
+    function renderizarRelatorio() {
       const tabela = document.getElementById('tabela-relatorio');
       tabela.innerHTML = '';
 
-      Object.values(estudantes).forEach(estudante => {
-        const listaNotas = estudante.notas ? Object.values(estudante.notas) : [];
-        const media = calcularMedia(estudante.notas);
+      const totalAlunos = Object.keys(estudantesDados).length;
+      const totalColegas = totalAlunos - 1;
+
+      // Mapeia quantas avaliações válidas CADA aluno enviou
+      const avaliacoesEnviadasPorAluno = {};
+      Object.values(estudantesDados).forEach(est => {
+        const notasObj = est.notas || {};
+        Object.keys(notasObj).forEach(avaliadorId => {
+          avaliacoesEnviadasPorAluno[avaliadorId] = (avaliacoesEnviadasPorAluno[avaliadorId] || 0) + 1;
+        });
+      });
+
+      Object.values(estudantesDados).forEach(estudante => {
+        const notasRecebidasObj = estudante.notas || {};
+        
+        const listaNotasValidas = Object.values(notasRecebidasObj)
+          .map(item => {
+            const valor = typeof item === 'object' && item !== null ? item.nota : item;
+            return Number(valor);
+          })
+          .filter(nota => !isNaN(nota) && nota !== null && nota !== undefined);
+
+        let media = "N/A";
+        if (listaNotasValidas.length > 0) {
+          const soma = listaNotasValidas.reduce((acumulador, nota) => acumulador + nota, 0);
+          media = (soma / listaNotasValidas.length).toFixed(1);
+        }
+
+        const enviadas = avaliacoesEnviadasPorAluno[estudante.id] || 0;
+        const cumpriuMeta = enviadas >= totalColegas;
+
         const tr = document.createElement('tr');
         tr.className = 'hover:bg-slate-800/40 transition';
         tr.innerHTML = `
           <td class="p-3 font-semibold text-slate-200">${estudante.nome}</td>
-          <td class="p-3 text-slate-400">${listaNotas.length} avaliações</td>
-          <td class="p-3 font-bold text-indigo-400">${media}</td>
-          <td class="p-3 text-right">
-            <button onclick="zerarNotas(${estudante.id})" class="text-xs bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 px-3 py-1.5 rounded-lg font-medium transition inline-flex items-center gap-1">
-              <i data-lucide="rotate-ccw" class="w-3 h-3"></i> Zerar
+          <td class="p-3 font-bold text-indigo-400 text-base">${media}</td>
+          <td class="p-3 text-slate-400">${listaNotasValidas.length} avaliação(ões)</td>
+          <td class="p-3">
+            <span class="px-2.5 py-1 rounded-full text-xs font-semibold ${cumpriuMeta ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'bg-rose-500/20 text-rose-300 border border-rose-500/30'}">
+              ${enviadas} / ${totalColegas} enviadas ${cumpriuMeta ? '✓' : '⚠️ (Pendente)'}
+            </span>
+          </td>
+          <td class="p-3 text-right space-x-2 no-print">
+            <button onclick="verDetalhes(${estudante.id})" class="text-xs bg-indigo-600/20 hover:bg-indigo-600/40 text-indigo-300 border border-indigo-500/30 px-3 py-1.5 rounded-lg font-medium transition">
+              Ver Notas
+            </button>
+            <button onclick="zerarNotas(${estudante.id})" class="text-xs bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 px-3 py-1.5 rounded-lg font-medium transition">
+              Zerar
             </button>
           </td>
         `;
@@ -95,10 +198,60 @@
       lucide.createIcons();
     }
 
+    function verDetalhes(id) {
+      const estudante = estudantesDados[id];
+      document.getElementById('detalhe-nome-aluno').innerText = `Notas recebidas por: ${estudante.nome}`;
+      const container = document.getElementById('detalhes-conteudo');
+      container.innerHTML = '';
+
+      const notasObj = estudante.notas || {};
+      const avaliações = Object.values(notasObj);
+
+      if (avaliações.length === 0) {
+        container.innerHTML = `<p class="text-slate-400 text-sm">Nenhuma nota recebida ainda.</p>`;
+      } else {
+        avaliações.forEach(item => {
+          const avaliadorNome = typeof item === 'object' && item.avaliadorNome ? item.avaliadorNome : 'Avaliador Anônimo/Antigo';
+          const valorNota = typeof item === 'object' && item.nota !== undefined ? item.nota : item;
+
+          const div = document.createElement('div');
+          div.className = 'flex justify-between items-center p-3 bg-slate-800/60 rounded-xl border border-slate-700/50';
+          div.innerHTML = `
+            <span class="text-sm font-medium text-slate-200">${avaliadorNome}</span>
+            <span class="text-sm font-bold text-indigo-400 bg-indigo-950/60 px-3 py-1 rounded-lg border border-indigo-500/30">Nota: ${valorNota}</span>
+          `;
+          container.appendChild(div);
+        });
+      }
+
+      document.getElementById('modal-detalhes').classList.remove('hidden');
+      document.getElementById('modal-detalhes').classList.add('flex');
+    }
+
+    function fecharDetalhes() {
+      document.getElementById('modal-detalhes').classList.add('hidden');
+      document.getElementById('modal-detalhes').classList.remove('flex');
+    }
+
     function zerarNotas(id) {
-      if (confirm('Tem certeza que deseja apagar todas as notas deste aluno no banco de dados?')) {
+      if (confirm('Tem certeza que deseja apagar todas as notas recebidas por este aluno?')) {
         db.ref(`estudantes/${id}/notas`).remove();
       }
+    }
+
+    function zerarTodasAsNotas() {
+      const confirmacao = confirm('ATENÇÃO: Deseja REALMENTE zerar todas as avaliações de TODOS os alunos? Essa ação não pode ser desfeita.');
+      if (confirmacao) {
+        Object.keys(estudantesDados).forEach(id => {
+          db.ref(`estudantes/${id}/notas`).remove();
+        });
+        alert('Todas as avaliações foram limpas.');
+      }
+    }
+
+    // Função para acionar a impressão/salvar como PDF
+    function gerarPDF() {
+      window.print();
     }
   </script>
 </body>

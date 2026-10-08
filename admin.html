@@ -12,7 +12,6 @@
     body { background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%); min-height: 100vh; color: #f8fafc; }
     .glass-card { background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.1); }
 
-    /* ESTILOS DE IMPRESSÃO / GERAR PDF */
     @media print {
       body {
         background: #ffffff !important;
@@ -62,16 +61,14 @@
     <header class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
       <div>
         <h1 class="text-3xl font-extrabold text-indigo-400 titulo-pdf">Painel do Professor - Turma 2B</h1>
-        <p class="text-slate-400 text-sm mt-1 subtitulo-pdf">Relatório Consolidado de Notas e Avaliações de Apresentações</p>
+        <p class="text-slate-400 text-sm mt-1 subtitulo-pdf">Relatório Consolidado de Notas Inteiras e Avaliações</p>
       </div>
       
       <div class="flex flex-wrap items-center gap-3 no-print">
-        <!-- Botão Exportar PDF -->
         <button onclick="gerarPDF()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2.5 rounded-xl font-semibold text-xs transition flex items-center gap-2 shadow-lg shadow-indigo-600/30">
           <i data-lucide="file-text" class="w-4 h-4"></i> Exportar Relatório (PDF)
         </button>
 
-        <!-- Botão Zerar Todas as Avaliações -->
         <button onclick="zerarTodasAsNotas()" class="bg-red-600/20 hover:bg-red-600/40 text-red-300 border border-red-500/40 px-4 py-2.5 rounded-xl font-semibold text-xs transition flex items-center gap-2 shadow-lg shadow-red-950/40">
           <i data-lucide="trash-2" class="w-4 h-4"></i> Zerar Aplicação
         </button>
@@ -89,7 +86,7 @@
           <thead class="bg-slate-800/80 text-slate-400 uppercase text-xs">
             <tr>
               <th class="p-3 rounded-l-lg">Estudante</th>
-              <th class="p-3">Média Consolidada</th>
+              <th class="p-3">Média Arredondada (Inteiro)</th>
               <th class="p-3">Avaliações Recebidas</th>
               <th class="p-3">Status de Envio (Obrigatoriedade)</th>
               <th class="p-3 text-right rounded-r-lg no-print">Ações</th>
@@ -145,7 +142,6 @@
       const totalAlunos = Object.keys(estudantesDados).length;
       const totalColegas = totalAlunos - 1;
 
-      // Mapeia quantas avaliações válidas CADA aluno enviou
       const avaliacoesEnviadasPorAluno = {};
       Object.values(estudantesDados).forEach(est => {
         const notasObj = est.notas || {};
@@ -164,10 +160,11 @@
           })
           .filter(nota => !isNaN(nota) && nota !== null && nota !== undefined);
 
+        // Média calculada e arredondada para o inteiro mais próximo
         let media = "N/A";
         if (listaNotasValidas.length > 0) {
           const soma = listaNotasValidas.reduce((acumulador, nota) => acumulador + nota, 0);
-          media = (soma / listaNotasValidas.length).toFixed(1);
+          media = Math.round(soma / listaNotasValidas.length);
         }
 
         const enviadas = avaliacoesEnviadasPorAluno[estudante.id] || 0;
@@ -218,7 +215,7 @@
           div.className = 'flex justify-between items-center p-3 bg-slate-800/60 rounded-xl border border-slate-700/50';
           div.innerHTML = `
             <span class="text-sm font-medium text-slate-200">${avaliadorNome}</span>
-            <span class="text-sm font-bold text-indigo-400 bg-indigo-950/60 px-3 py-1 rounded-lg border border-indigo-500/30">Nota: ${valorNota}</span>
+            <span class="text-sm font-bold text-indigo-400 bg-indigo-950/60 px-3 py-1 rounded-lg border border-indigo-500/30">Nota: ${Math.round(valorNota)}</span>
           `;
           container.appendChild(div);
         });
@@ -249,7 +246,6 @@
       }
     }
 
-    // Função para acionar a impressão/salvar como PDF
     function gerarPDF() {
       window.print();
     }

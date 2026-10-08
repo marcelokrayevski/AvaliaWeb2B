@@ -28,7 +28,7 @@
 </head>
 <body class="p-4 md:p-8 font-sans">
 
-  <!-- Modal de Login / Identificação do Aluno -->
+  <!-- Modal de Login -->
   <div id="modal-login" class="fixed inset-0 bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-4 z-50">
     <div class="glass-card bg-slate-900 p-6 rounded-2xl w-full max-w-md border border-slate-700 shadow-2xl">
       <h2 class="text-2xl font-bold text-slate-100 mb-2 text-center">Identificação do Aluno</h2>
@@ -74,13 +74,13 @@
   <div id="modal-avaliacao" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden items-center justify-center p-4 z-50">
     <div class="glass-card bg-slate-900 p-6 rounded-2xl w-full max-w-md border border-slate-700 shadow-2xl relative">
       <h3 class="text-xl font-bold text-slate-100 mb-1" id="modal-nome-aluno">Avaliar Aluno</h3>
-      <p class="text-slate-400 text-xs mb-6">Atribua uma nota de 0 a 100 para o colega.</p>
+      <p class="text-slate-400 text-xs mb-6">Atribua uma nota inteira de 0 a 100 para o colega.</p>
 
       <form id="form-avaliacao" onsubmit="salvarAvaliacao(event)">
         <input type="hidden" id="modal-aluno-id" />
         <div class="mb-6">
-          <label class="block text-sm font-medium text-slate-300 mb-2">Nota (0 a 100)</label>
-          <input type="number" id="input-nota" min="0" max="100" required placeholder="Ex: 85"
+          <label class="block text-sm font-medium text-slate-300 mb-2">Nota Inteira (0 a 100)</label>
+          <input type="number" id="input-nota" min="0" max="100" step="1" required placeholder="Ex: 85"
                  class="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-2xl font-bold text-indigo-400 focus:outline-none focus:border-indigo-500 text-center" />
         </div>
 
@@ -125,7 +125,6 @@
     let alunoLogadoId = localStorage.getItem('alunoLogadoId') || null;
     let estudantesDados = {};
 
-    // Popula select de login
     const selectLogin = document.getElementById('select-aluno-login');
     listaAlunosOficial.forEach((nome, idx) => {
       const opt = document.createElement('option');
@@ -188,7 +187,6 @@
       Object.values(estudantesDados).forEach(estudante => {
         const eProprioAluno = (estudante.id == alunoLogadoId);
         
-        // Verifica se o aluno logado já avaliou este estudante
         const notasObj = estudante.notas || {};
         const jaAvaliou = !!notasObj[alunoLogadoId];
 
@@ -201,8 +199,9 @@
         if (eProprioAluno) {
           botaoHtml = `<button disabled class="w-full mt-4 bg-slate-800 text-slate-500 py-2 rounded-lg text-xs font-medium cursor-not-allowed border border-slate-800">Você</button>`;
         } else if (jaAvaliou) {
+          const valorNota = typeof notasObj[alunoLogadoId] === 'object' ? notasObj[alunoLogadoId].nota : notasObj[alunoLogadoId];
           botaoHtml = `<button disabled class="w-full mt-4 bg-emerald-950/40 border border-emerald-500/30 text-emerald-400 py-2 rounded-lg text-xs font-semibold cursor-not-allowed flex items-center justify-center gap-1">
-            <i data-lucide="check" class="w-3.5 h-3.5"></i> Nota Lançada (${notasObj[alunoLogadoId].nota})
+            <i data-lucide="check" class="w-3.5 h-3.5"></i> Nota Lançada (${Math.round(valorNota)})
           </button>`;
         } else {
           botaoHtml = `<button onclick="abrirModal(${estudante.id})" class="w-full mt-4 bg-indigo-600 hover:bg-indigo-500 text-white py-2 rounded-lg font-medium text-xs transition border border-indigo-500">
@@ -248,16 +247,17 @@
     function salvarAvaliacao(e) {
       e.preventDefault();
       const idAvaliado = document.getElementById('modal-aluno-id').value;
-      const nota = parseFloat(document.getElementById('input-nota').value);
+      const rawValue = document.getElementById('input-nota').value;
+      const nota = Number(rawValue);
 
-      if (isNaN(nota) || nota < 0 || nota > 100) {
-        alert('Por favor, digite uma nota válida entre 0 e 100.');
+      // Validação rigorosa: Número inteiro entre 0 e 100
+      if (isNaN(nota) || !Number.isInteger(nota) || nota < 0 || nota > 100) {
+        alert('Por favor, digite um número inteiro válido de 0 a 100 (sem casas decimais).');
         return;
       }
 
       const avaliadorNome = estudantesDados[alunoLogadoId].nome;
 
-      // Salva a nota mapeada pela chave do ID do avaliador
       db.ref(`estudantes/${idAvaliado}/notas/${alunoLogadoId}`).set({
         nota: nota,
         avaliadorId: alunoLogadoId,
